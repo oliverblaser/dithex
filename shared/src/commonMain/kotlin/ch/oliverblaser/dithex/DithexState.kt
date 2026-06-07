@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 
 data class DithexUiState(
     val source: SourceImage? = null,
+    val sourceRevision: Long = 0,
     val settings: DitherSettings = DitherSettings(),
     val frame: HexFrame? = null,
     val isProcessing: Boolean = false,
@@ -31,7 +32,11 @@ class DithexState(
     private var generation = 0L
 
     fun load(source: SourceImage) {
-        mutableUiState.value = mutableUiState.value.copy(source = source, error = null)
+        mutableUiState.value = mutableUiState.value.copy(
+            source = source,
+            sourceRevision = mutableUiState.value.sourceRevision + 1,
+            error = null,
+        )
         scheduleProcessing(0)
     }
 

@@ -3,6 +3,8 @@ package ch.oliverblaser.dithex
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,19 +30,27 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.max
 import kotlin.math.min
 
 private val Ink = Color(0xff10110f)
@@ -204,6 +214,7 @@ private fun Setting(label: String, value: Float, range: ClosedFloatingPointRange
 
 @Composable
 private fun Preview(uiState: DithexUiState, modifier: Modifier) {
+    val viewportState = remember(uiState.sourceRevision) { HexViewportState() }
     Box(
         modifier.background(Paper, RoundedCornerShape(22.dp)).border(1.dp, Color.White.copy(alpha = .12f), RoundedCornerShape(22.dp)),
         contentAlignment = Alignment.Center,
@@ -218,9 +229,23 @@ private fun Preview(uiState: DithexUiState, modifier: Modifier) {
         } else {
             HexCanvas(
                 frame,
+                viewportState,
                 Modifier.fillMaxSize().padding(22.dp),
                 Color(uiState.settings.grayLevel, uiState.settings.grayLevel, uiState.settings.grayLevel),
             )
+            if (!viewportState.isReset) {
+                Button(
+                    onClick = viewportState::reset,
+                    modifier = Modifier.align(Alignment.TopStart).padding(18.dp).height(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Ink.copy(alpha = .82f),
+                        contentColor = Paper,
+                    ),
+                ) {
+                    Text("RESET VIEW  ${(viewportState.zoom * 100).toInt()}%", fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+            }
         }
         if (uiState.isProcessing) {
             CircularProgressIndicator(Modifier.align(Alignment.TopEnd).padding(18.dp).width(22.dp), color = Ink, strokeWidth = 2.dp)
@@ -231,20 +256,64 @@ private fun Preview(uiState: DithexUiState, modifier: Modifier) {
     }
 }
 
+private class HexViewportState {
+    var zoom by mutableFloatStateOf(1f)
+    var pan by mutableStateOf(Offset.Zero)
+    var viewportSize by mutableStateOf(IntSize.Zero)
+    val isReset: Boolean get() = zoom == 1f && pan == Offset.Zero
+
+    fun reset() {
+        zoom = 1f
+        pan = Offset.Zero
+    }
+}
+
 @Composable
-private fun HexCanvas(frame: HexFrame, modifier: Modifier, background: Color) {
-    Canvas(modifier) {
+private fun HexCanvas(frame: HexFrame, viewportState: HexViewportState, modifier: Modifier, background: Color) {
+    LaunchedEffect(frame, viewportState.viewportSize) {
+        viewportState.pan = clampPan(viewportState.pan, viewportState.zoom, viewportState.viewportSize, frame)
+    }
+    val transformState = rememberTransformableState { centroid, zoomChange, panChange, _ ->
+        val newZoom = (viewportState.zoom * zoomChange).coerceIn(.25f, 12f)
+        val appliedZoomChange = newZoom / viewportState.zoom
+        val viewportCenter = Offset(viewportState.viewportSize.width * .5f, viewportState.viewportSize.height * .5f)
+        val focusFromCenter = centroid - viewportCenter
+        val transformedPan =
+            viewportState.pan * appliedZoomChange + focusFromCenter * (1f - appliedZoomChange) + panChange
+        viewportState.pan = clampPan(transformedPan, newZoom, viewportState.viewportSize, frame)
+        viewportState.zoom = newZoom
+    }
+
+    Canvas(
+        modifier
+            .clipToBounds()
+            .onSizeChanged { viewportState.viewportSize = it }
+            .transformable(
+                state = transformState,
+                canPan = { viewportState.zoom > 1f },
+                lockRotationOnZoomPan = true,
+            ),
+    ) {
         val scale = min(size.width / frame.width, size.height / frame.height)
-        val originX = (size.width - frame.width * scale) * .5f
-        val originY = (size.height - frame.height * scale) * .5f
-        val radius = scale
+        val radius = scale * viewportState.zoom
+        val originX = (size.width - frame.width * radius) * .5f + viewportState.pan.x
+        val originY = (size.height - frame.height * radius) * .5f + viewportState.pan.y
         drawRect(
             color = background,
             topLeft = Offset(originX, originY),
-            size = androidx.compose.ui.geometry.Size(frame.width * scale, frame.height * scale),
+            size = androidx.compose.ui.geometry.Size(frame.width * radius, frame.height * radius),
         )
         drawHexFrame(frame, originX, originY, radius)
     }
+}
+
+private fun clampPan(pan: Offset, zoom: Float, viewport: IntSize, frame: HexFrame): Offset {
+    if (zoom <= 1f || viewport == IntSize.Zero) return Offset.Zero
+
+    val fitScale = min(viewport.width / frame.width, viewport.height / frame.height)
+    val maxX = max(0f, (frame.width * fitScale * zoom - viewport.width) * .5f)
+    val maxY = max(0f, (frame.height * fitScale * zoom - viewport.height) * .5f)
+    return Offset(pan.x.coerceIn(-maxX, maxX), pan.y.coerceIn(-maxY, maxY))
 }
 
 private fun DrawScope.drawHexFrame(frame: HexFrame, originX: Float, originY: Float, radius: Float) {

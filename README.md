@@ -30,6 +30,19 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Desktop tests: `./gradlew :shared:jvmTest`
 - Web tests: `./gradlew :shared:wasmJsTest`
 
+### Deploying the web app
+
+The web application is static and processes loaded images entirely inside the visitor's
+browser. The repository includes an AWS CDK app in [`infrastructure`](./infrastructure)
+that creates private S3 and CloudFront hosting without committing AWS account details or
+credentials.
+
+Infrastructure deployment and application uploads are intentionally manual. See the
+[infrastructure deployment guide](./infrastructure/README.md) for the required commands.
+
+Before publishing this repository as open source, add the license under which you want
+others to use and modify Dithex.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),

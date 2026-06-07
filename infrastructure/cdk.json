@@ -1,0 +1,7 @@
+{
+  "app": "node --require ts-node/register bin/dithex.ts",
+  "context": {
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true
+  }
+}

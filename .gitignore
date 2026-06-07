@@ -17,3 +17,10 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# AWS CDK and local deployment configuration
+infrastructure/cdk.out/
+infrastructure/.cdk.staging/
+infrastructure/cdk.context.json
+infrastructure/.env
+infrastructure/*.local.json

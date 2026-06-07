@@ -6,3 +6,7 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
 }
+
+allprojects {
+    version = providers.gradleProperty("dithex.version").get()
+}

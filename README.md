@@ -30,6 +30,16 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Desktop tests: `./gradlew :shared:jvmTest`
 - Web tests: `./gradlew :shared:wasmJsTest`
 
+### Versioning
+
+Dithex follows semantic versioning while it is under active development. The current application
+version is defined by `dithex.version` in `gradle.properties`, and published releases are marked
+with matching Git tags such as `v0.2.0`.
+
+- Minor versions add user-facing functionality.
+- Patch versions contain compatible fixes and refinements.
+- Version `1.0.0` will mark the first stable release.
+
 ### Deploying the web app
 
 The web application is static and processes loaded images entirely inside the visitor's
